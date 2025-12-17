@@ -1,9 +1,9 @@
-
 export interface Transaction {
   id?: string;
+  userId: string; // Added userId
   title: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: "income" | "expense";
   category: string;
   date: string; // ISO String
   notes?: string;
@@ -13,6 +13,7 @@ export interface Transaction {
 
 export interface Budget {
   id?: string;
+  userId: string; // Added userId
   category: string;
   limit: number;
   spent: number;
@@ -20,25 +21,28 @@ export interface Budget {
 
 export interface Category {
   id?: string;
+  userId: string; // Added userId
   name: string;
-  type: 'income' | 'expense';
+  type: "income" | "expense";
   color: string;
   icon?: string;
 }
 
 export interface RecurringRule {
   id?: string;
+  userId: string; // Added userId
   title: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: "income" | "expense";
   category: string;
-  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  frequency: "daily" | "weekly" | "monthly" | "yearly";
   nextDueDate: string; // ISO String
   lastProcessed?: string;
 }
 
 export interface SavingsGoal {
   id?: string;
+  userId: string; // Added userId
   name: string;
   targetAmount: number;
   currentAmount: number;
@@ -49,7 +53,7 @@ export interface SavingsGoal {
 export interface FinancialHealth {
   score: number; // 0-100
   savingsRate: number; // Percentage
-  status: 'Critical' | 'Fair' | 'Good' | 'Excellent';
+  status: "Critical" | "Fair" | "Good" | "Excellent";
 }
 
 export interface UserProfile {
@@ -60,7 +64,7 @@ export interface UserProfile {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'model';
+  role: "user" | "model";
   text: string;
   timestamp: number;
 }

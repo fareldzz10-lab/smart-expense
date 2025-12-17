@@ -1,5 +1,11 @@
-import Dexie, { Table } from 'dexie';
-import { Transaction, Budget, RecurringRule, SavingsGoal, Category } from '../types';
+import Dexie, { Table } from "dexie";
+import {
+  Transaction,
+  Budget,
+  RecurringRule,
+  SavingsGoal,
+  Category,
+} from "../types";
 
 // Dexie Database Definition
 class SmartExpenseDB extends Dexie {
@@ -10,37 +16,28 @@ class SmartExpenseDB extends Dexie {
   categories!: Table<Category, string>;
 
   constructor() {
-    super('SmartExpenseDB');
-    
+    super("SmartExpenseDB");
+
+    // Version 5: Multi-user support (Adding userId to indexes)
+    // We create compound indexes (e.g., [userId+date]) for fast sorting/filtering per user
+    (this as any).version(5).stores({
+      transactions: "++id, userId, [userId+date], type, category",
+      budgets: "++id, userId, category",
+      recurringRules: "++id, userId, type",
+      savingsGoals: "++id, userId, deadline",
+      categories: "++id, userId, [userId+type], name",
+    });
+
     // Version 4 adds categories
     (this as any).version(4).stores({
-      transactions: '++id, date, type, category',
-      budgets: '++id, category',
-      recurringRules: '++id, type',
-      savingsGoals: '++id, deadline',
-      categories: '++id, type, name'
+      transactions: "++id, date, type, category",
+      budgets: "++id, category",
+      recurringRules: "++id, type",
+      savingsGoals: "++id, deadline",
+      categories: "++id, type, name",
     });
 
-    // Version 3 adds savingsGoals
-    (this as any).version(3).stores({
-      transactions: '++id, date, type, category',
-      budgets: '++id, category',
-      recurringRules: '++id, type',
-      savingsGoals: '++id, deadline'
-    });
-
-    // Version 2 adds recurringRules
-    (this as any).version(2).stores({
-      transactions: '++id, date, type, category',
-      budgets: '++id, category',
-      recurringRules: '++id, type'
-    });
-    
-    // Version 1 fallback
-    (this as any).version(1).stores({
-      transactions: '++id, date, type, category',
-      budgets: '++id, category'
-    });
+    // Previous versions... (kept for migration history if needed, though simpler to rebuild in dev)
   }
 }
 
@@ -48,64 +45,105 @@ const db = new SmartExpenseDB();
 
 // Storage Service Class
 class StorageService {
+  private currentUserId: string = "guest";
+
+  // Set the current user context
+  setUserId(userId: string) {
+    this.currentUserId = userId;
+  }
+
   // --- Transaction Methods ---
 
-  async addTransaction(transaction: Transaction): Promise<string> {
+  async addTransaction(
+    transaction: Omit<Transaction, "userId"> & { userId?: string }
+  ): Promise<string> {
     const id = await db.transactions.add({
       ...transaction,
-      id: transaction.id || crypto.randomUUID()
+      userId: this.currentUserId, // Automatically attach current user ID
+      id: transaction.id || crypto.randomUUID(),
     });
     return id.toString();
   }
 
   async updateTransaction(transaction: Transaction): Promise<void> {
     if (!transaction.id) return;
-    await db.transactions.put(transaction);
+    // Ensure we only update if it belongs to current user (security check)
+    await db.transactions
+      .where({ id: transaction.id, userId: this.currentUserId })
+      .modify(transaction);
   }
 
   async getTransactions(): Promise<Transaction[]> {
-    return await db.transactions.orderBy('date').reverse().toArray();
+    // Efficiently query only data for this user using the compound index
+    return await db.transactions
+      .where("[userId+date]")
+      .between(
+        [this.currentUserId, Dexie.minKey],
+        [this.currentUserId, Dexie.maxKey]
+      )
+      .reverse()
+      .toArray();
   }
 
   async deleteTransaction(id: string): Promise<void> {
-    await db.transactions.delete(id);
+    await db.transactions
+      .where({ id: id, userId: this.currentUserId })
+      .delete();
   }
 
   // --- Budget Methods ---
 
   async getBudgets(): Promise<Budget[]> {
-    return await db.budgets.toArray();
+    return await db.budgets
+      .where("userId")
+      .equals(this.currentUserId)
+      .toArray();
   }
 
-  async updateBudget(budget: Budget): Promise<void> {
-    const existing = await db.budgets.where('category').equals(budget.category).first();
+  async updateBudget(
+    budget: Omit<Budget, "userId"> & { userId?: string }
+  ): Promise<void> {
+    const existing = await db.budgets
+      .where({ userId: this.currentUserId, category: budget.category })
+      .first();
+
     if (existing && existing.id) {
       budget.id = existing.id;
     }
-    
+
+    const budgetToSave = { ...budget, userId: this.currentUserId };
+
     if (budget.id) {
-      await db.budgets.put(budget);
+      await db.budgets.put(budgetToSave as Budget);
     } else {
-      await db.budgets.add(budget);
+      await db.budgets.add(budgetToSave as Budget);
     }
   }
 
   // --- Recurring Rule Methods ---
 
-  async addRecurringRule(rule: RecurringRule): Promise<string> {
+  async addRecurringRule(
+    rule: Omit<RecurringRule, "userId"> & { userId?: string }
+  ): Promise<string> {
     const id = await db.recurringRules.add({
       ...rule,
-      id: rule.id || crypto.randomUUID()
+      userId: this.currentUserId,
+      id: rule.id || crypto.randomUUID(),
     });
     return id.toString();
   }
 
   async getRecurringRules(): Promise<RecurringRule[]> {
-    return await db.recurringRules.toArray();
+    return await db.recurringRules
+      .where("userId")
+      .equals(this.currentUserId)
+      .toArray();
   }
 
   async deleteRecurringRule(id: string): Promise<void> {
-    await db.recurringRules.delete(id);
+    await db.recurringRules
+      .where({ id: id, userId: this.currentUserId })
+      .delete();
   }
 
   // Process rules: Check if any rule is due, create transaction, update nextDueDate
@@ -116,7 +154,7 @@ class StorageService {
 
     for (const rule of rules) {
       const dueDate = new Date(rule.nextDueDate);
-      
+
       if (dueDate <= today) {
         // Create the transaction
         await this.addTransaction({
@@ -125,23 +163,31 @@ class StorageService {
           type: rule.type,
           category: rule.category,
           date: dueDate.toISOString(),
-          notes: 'Generated by automation rule'
+          notes: "Generated by automation rule",
         });
 
         // Calculate next date
         const nextDate = new Date(dueDate);
         switch (rule.frequency) {
-          case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
-          case 'weekly': nextDate.setDate(nextDate.getDate() + 7); break;
-          case 'monthly': nextDate.setMonth(nextDate.getMonth() + 1); break;
-          case 'yearly': nextDate.setFullYear(nextDate.getFullYear() + 1); break;
+          case "daily":
+            nextDate.setDate(nextDate.getDate() + 1);
+            break;
+          case "weekly":
+            nextDate.setDate(nextDate.getDate() + 7);
+            break;
+          case "monthly":
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            break;
+          case "yearly":
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            break;
         }
 
         // Update rule
         await db.recurringRules.put({
           ...rule,
           nextDueDate: nextDate.toISOString(),
-          lastProcessed: new Date().toISOString()
+          lastProcessed: new Date().toISOString(),
         });
 
         processedCount++;
@@ -152,60 +198,128 @@ class StorageService {
 
   // --- Savings Goal Methods ---
 
-  async addSavingsGoal(goal: SavingsGoal): Promise<string> {
+  async addSavingsGoal(
+    goal: Omit<SavingsGoal, "userId"> & { userId?: string }
+  ): Promise<string> {
     const id = await db.savingsGoals.add({
       ...goal,
-      id: goal.id || crypto.randomUUID()
+      userId: this.currentUserId,
+      id: goal.id || crypto.randomUUID(),
     });
     return id.toString();
   }
 
   async getSavingsGoals(): Promise<SavingsGoal[]> {
-    return await db.savingsGoals.toArray();
+    return await db.savingsGoals
+      .where("userId")
+      .equals(this.currentUserId)
+      .toArray();
   }
 
   async updateSavingsGoal(goal: SavingsGoal): Promise<void> {
+    if (goal.userId !== this.currentUserId) return; // simple safeguard
     await db.savingsGoals.put(goal);
   }
 
   async deleteSavingsGoal(id: string): Promise<void> {
-    await db.savingsGoals.delete(id);
+    await db.savingsGoals
+      .where({ id: id, userId: this.currentUserId })
+      .delete();
   }
 
   // --- Category Methods ---
 
   async getCategories(): Promise<Category[]> {
-    const count = await db.categories.count();
+    const count = await db.categories
+      .where("userId")
+      .equals(this.currentUserId)
+      .count();
     if (count === 0) {
       await this.seedDefaultCategories();
     }
-    return await db.categories.toArray();
+    return await db.categories
+      .where("userId")
+      .equals(this.currentUserId)
+      .toArray();
   }
 
-  async addCategory(category: Category): Promise<string> {
+  async addCategory(
+    category: Omit<Category, "userId"> & { userId?: string }
+  ): Promise<string> {
     const id = await db.categories.add({
       ...category,
-      id: category.id || crypto.randomUUID()
+      userId: this.currentUserId,
+      id: category.id || crypto.randomUUID(),
     });
     return id.toString();
   }
 
   async deleteCategory(id: string): Promise<void> {
-    await db.categories.delete(id);
+    await db.categories.where({ id: id, userId: this.currentUserId }).delete();
   }
 
   async seedDefaultCategories() {
     const defaults: Category[] = [
-      { name: 'Salary', type: 'income', color: '#10b981' },
-      { name: 'Freelance', type: 'income', color: '#3b82f6' },
-      { name: 'Investment', type: 'income', color: '#8b5cf6' },
-      { name: 'Food', type: 'expense', color: '#f59e0b' },
-      { name: 'Transport', type: 'expense', color: '#3b82f6' },
-      { name: 'Utilities', type: 'expense', color: '#eab308' },
-      { name: 'Entertainment', type: 'expense', color: '#ec4899' },
-      { name: 'Housing', type: 'expense', color: '#6366f1' },
-      { name: 'Health', type: 'expense', color: '#ef4444' },
-      { name: 'Shopping', type: 'expense', color: '#14b8a6' },
+      {
+        userId: this.currentUserId,
+        name: "Salary",
+        type: "income",
+        color: "#10b981",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Freelance",
+        type: "income",
+        color: "#3b82f6",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Investment",
+        type: "income",
+        color: "#8b5cf6",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Food",
+        type: "expense",
+        color: "#f59e0b",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Transport",
+        type: "expense",
+        color: "#3b82f6",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Utilities",
+        type: "expense",
+        color: "#eab308",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Entertainment",
+        type: "expense",
+        color: "#ec4899",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Housing",
+        type: "expense",
+        color: "#6366f1",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Health",
+        type: "expense",
+        color: "#ef4444",
+      },
+      {
+        userId: this.currentUserId,
+        name: "Shopping",
+        type: "expense",
+        color: "#14b8a6",
+      },
     ];
     await db.categories.bulkAdd(defaults);
   }
@@ -215,35 +329,66 @@ class StorageService {
   async getFinancialSummary() {
     const transactions = await this.getTransactions();
     const totalIncome = transactions
-      .filter(t => t.type === 'income')
+      .filter((t) => t.type === "income")
       .reduce((acc, curr) => acc + curr.amount, 0);
     const totalExpense = transactions
-      .filter(t => t.type === 'expense')
+      .filter((t) => t.type === "expense")
       .reduce((acc, curr) => acc + curr.amount, 0);
-    
+
     return {
       totalIncome,
       totalExpense,
-      balance: totalIncome - totalExpense
+      balance: totalIncome - totalExpense,
     };
   }
 
   async clearAllData() {
-    await db.transactions.clear();
-    await db.budgets.clear();
-    await db.recurringRules.clear();
-    await db.savingsGoals.clear();
-    await db.categories.clear();
+    // Only clear data for the CURRENT user
+    await db.transaction(
+      "rw",
+      [
+        db.transactions,
+        db.budgets,
+        db.recurringRules,
+        db.savingsGoals,
+        db.categories,
+      ],
+      async () => {
+        await db.transactions
+          .where("userId")
+          .equals(this.currentUserId)
+          .delete();
+        await db.budgets.where("userId").equals(this.currentUserId).delete();
+        await db.recurringRules
+          .where("userId")
+          .equals(this.currentUserId)
+          .delete();
+        await db.savingsGoals
+          .where("userId")
+          .equals(this.currentUserId)
+          .delete();
+        await db.categories.where("userId").equals(this.currentUserId).delete();
+      }
+    );
   }
 
   async importData(jsonData: string) {
     try {
       const data = JSON.parse(jsonData);
+      // When importing, force the userId to be the current user
       if (data.transactions && Array.isArray(data.transactions)) {
-        await db.transactions.bulkPut(data.transactions);
+        const txs = data.transactions.map((t: any) => ({
+          ...t,
+          userId: this.currentUserId,
+        }));
+        await db.transactions.bulkPut(txs);
       }
       if (data.budgets && Array.isArray(data.budgets)) {
-        await db.budgets.bulkPut(data.budgets);
+        const bdgs = data.budgets.map((b: any) => ({
+          ...b,
+          userId: this.currentUserId,
+        }));
+        await db.budgets.bulkPut(bdgs);
       }
       return true;
     } catch (e) {
