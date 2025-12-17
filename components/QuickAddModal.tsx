@@ -235,7 +235,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                       onChange={(e) => setAiInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleAiAnalyze()}
                       placeholder="AI Assist: 'Spent 50k on Coffee' (Enter)"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-12 text-sm text-slate-200 placeholder:text-slate-600 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-12 text-base text-slate-200 placeholder:text-slate-600 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                     />
                   </div>
                 )}
@@ -279,6 +279,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                       </span>
                       <input
                         type="number"
+                        inputMode="decimal"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0"
@@ -315,7 +316,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                         placeholder="Select or type..."
-                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 focus:ring-1 focus:ring-indigo-500 outline-none text-sm placeholder:text-slate-600"
+                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 focus:ring-1 focus:ring-indigo-500 outline-none text-base placeholder:text-slate-600"
                       />
                       <datalist id="category-suggestions">
                         {filteredCategories.map((c) => (
@@ -337,7 +338,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 focus:ring-1 focus:ring-indigo-500 outline-none text-sm [color-scheme:dark]"
+                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 focus:ring-1 focus:ring-indigo-500 outline-none text-base [color-scheme:dark]"
                       />
                     </div>
                   </div>
@@ -357,7 +358,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                       <select
                         value={selectedGoalId}
                         onChange={(e) => setSelectedGoalId(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 appearance-none focus:ring-1 focus:ring-indigo-500 outline-none text-sm"
+                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 appearance-none focus:ring-1 focus:ring-indigo-500 outline-none text-base"
                       >
                         <option value="">None</option>
                         {savingsGoals.map((g) => (
@@ -385,7 +386,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Add notes..."
                       rows={3}
-                      className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 focus:ring-1 focus:ring-indigo-500 outline-none text-sm placeholder:text-slate-600 resize-none"
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl py-3 pl-10 pr-4 focus:ring-1 focus:ring-indigo-500 outline-none text-base placeholder:text-slate-600 resize-none"
                     />
                   </div>
                 </div>

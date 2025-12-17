@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useMemo } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { MobileNav } from "./components/MobileNav";
 import { Login } from "./pages/Login";
@@ -9,7 +9,8 @@ import { Transaction, Budget } from "./types";
 import { AnimatePresence, motion } from "framer-motion";
 import { InteractiveBackground } from "./components/InteractiveBackground";
 import { usePrivacy } from "./context/PrivacyContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, Sun, Moon } from "lucide-react";
+import { AnimatedCounter } from "./components/AnimatedCounter";
 
 // Lazy Load Pages to improve performance (Code Splitting)
 const Dashboard = React.lazy(() =>
@@ -41,7 +42,7 @@ const LoadingFallback = () => (
 );
 
 const App: React.FC = () => {
-  const { togglePrivacyMode } = usePrivacy();
+  const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
 
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -119,6 +120,13 @@ const App: React.FC = () => {
     setBudgets(bdgs);
   };
 
+  // Calculate Total Balance for Mobile Header
+  const totalBalance = useMemo(() => {
+    return transactions.reduce((acc, t) => {
+      return t.type === "income" ? acc + t.amount : acc - t.amount;
+    }, 0);
+  }, [transactions]);
+
   useEffect(() => {
     if (isAuthenticated && currentUserId) {
       loadData();
@@ -153,7 +161,6 @@ const App: React.FC = () => {
     setCurrentUserId("");
     localStorage.removeItem("smart_expense_auth");
     localStorage.removeItem("smart_expense_uid");
-    // We don't remove userName so it remembers the last user for convenience, or you can remove it.
     setActiveTab("overview");
   };
 
@@ -259,8 +266,58 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300 relative">
+    <div className="flex min-h-screen text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300 relative bg-slate-50 dark:bg-[#0f172a]">
       <InteractiveBackground />
+
+      {/* Mobile Header - Always Visible on Mobile */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex justify-between items-center transition-all duration-300">
+        {/* Logo & Name */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-1.5 shadow-md shadow-indigo-500/20">
+            <img
+              src="/logo.svg"
+              alt="Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-slate-900 dark:text-white leading-none mb-0.5">
+              {userName}
+            </h1>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                Online
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Balance Toggles */}
+        <div className="flex items-center gap-3">
+          <div className="text-right mr-1">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-0.5">
+              Total Balance
+            </p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white leading-none font-mono">
+              <AnimatedCounter value={totalBalance} />
+            </p>
+          </div>
+          <button
+            onClick={togglePrivacyMode}
+            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+          >
+            {isPrivacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
+          >
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+        </div>
+      </div>
+
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -272,7 +329,8 @@ const App: React.FC = () => {
         onUpdateName={handleUpdateName}
       />
 
-      <main className="flex-1 md:ml-64 p-4 md:p-8 min-h-screen pb-32 md:pb-8 overflow-x-hidden relative z-10 perspective-1000">
+      {/* Main Content - Added pt-20 for mobile header compensation */}
+      <main className="flex-1 md:ml-64 p-4 md:p-8 min-h-screen pb-32 md:pb-8 pt-20 md:pt-8 overflow-x-hidden relative z-10 perspective-1000">
         <div className="max-w-7xl mx-auto">
           <AnimatePresence mode="wait">{renderContent()}</AnimatePresence>
         </div>

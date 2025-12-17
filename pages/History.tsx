@@ -493,76 +493,164 @@ export const History: React.FC<HistoryProps> = ({
               </h3>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[600px] md:min-w-0">
-                  <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                    <tr>
-                      {selectionMode && <th className="w-12 px-6 py-5"></th>}
-                      <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider">
-                        Transaction
-                      </th>
-                      <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider">
-                        Category
-                      </th>
-                      <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider text-right">
-                        Amount
-                      </th>
-                      <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider text-center">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                    {Object.entries(groupedTransactions).map(([date, txs]) => (
-                      <React.Fragment key={date}>
-                        <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                          <td
-                            colSpan={selectionMode ? 5 : 4}
-                            className="px-6 py-2 text-xs font-bold text-slate-500 uppercase tracking-wide"
-                          >
-                            {getDateLabel(date)}
-                          </td>
-                        </tr>
-                        {txs.map((t) => (
-                          <tr
-                            key={t.id}
-                            className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                          >
+            <>
+              {/* DESKTOP TABLE VIEW */}
+              <div className="hidden md:block bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px] md:min-w-0">
+                    <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                      <tr>
+                        {selectionMode && <th className="w-12 px-6 py-5"></th>}
+                        <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider">
+                          Transaction
+                        </th>
+                        <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider">
+                          Category
+                        </th>
+                        <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider text-right">
+                          Amount
+                        </th>
+                        <th className="px-6 py-5 text-slate-500 font-medium text-xs uppercase tracking-wider text-center">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                      {Object.entries(groupedTransactions).map(
+                        ([date, txs]) => (
+                          <React.Fragment key={date}>
+                            <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                              <td
+                                colSpan={selectionMode ? 5 : 4}
+                                className="px-6 py-2 text-xs font-bold text-slate-500 uppercase tracking-wide"
+                              >
+                                {getDateLabel(date)}
+                              </td>
+                            </tr>
+                            {txs.map((t) => (
+                              <tr
+                                key={t.id}
+                                className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                              >
+                                {selectionMode && (
+                                  <td className="px-6 py-4">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!t.id && selectedIds.has(t.id)}
+                                      onChange={() =>
+                                        t.id && toggleSelection(t.id)
+                                      }
+                                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                  </td>
+                                )}
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-4">
+                                    <div
+                                      className={`w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 shrink-0`}
+                                    >
+                                      {getCategoryIcon(t.category)}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">
+                                        {t.title}
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {t.type}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                    {t.category}
+                                  </span>
+                                </td>
+                                <td
+                                  className={`px-6 py-4 text-right font-bold text-sm ${
+                                    t.type === "income"
+                                      ? "text-emerald-600 dark:text-emerald-500"
+                                      : "text-rose-600 dark:text-rose-500"
+                                  }`}
+                                >
+                                  {t.type === "income" ? "+" : "-"}{" "}
+                                  {formatCurrency(t.amount)}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => handleEdit(t)}
+                                      className="p-2 text-slate-400 hover:text-indigo-500"
+                                    >
+                                      <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(t.id)}
+                                      className="p-2 text-slate-400 hover:text-rose-500"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* MOBILE CARD VIEW */}
+              <div className="md:hidden space-y-4">
+                {Object.entries(groupedTransactions).map(([date, txs]) => (
+                  <div key={date}>
+                    <div className="sticky top-14 z-10 bg-slate-50/95 dark:bg-[#0f172a]/95 backdrop-blur-sm py-2 px-1 mb-2 border-b border-slate-200 dark:border-slate-800/50">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                        {getDateLabel(date)}
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      {txs.map((t) => (
+                        <div
+                          key={t.id}
+                          onClick={() => !selectionMode && handleEdit(t)}
+                          className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between active:scale-[0.98] transition-transform"
+                        >
+                          <div className="flex items-center gap-3 overflow-hidden">
                             {selectionMode && (
-                              <td className="px-6 py-4">
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="pr-1"
+                              >
                                 <input
                                   type="checkbox"
                                   checked={!!t.id && selectedIds.has(t.id)}
                                   onChange={() => t.id && toggleSelection(t.id)}
-                                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                                  className="w-5 h-5 rounded border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
                                 />
-                              </td>
-                            )}
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-4">
-                                <div
-                                  className={`w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 shrink-0`}
-                                >
-                                  {getCategoryIcon(t.category)}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">
-                                    {t.title}
-                                  </p>
-                                  <p className="text-xs text-slate-500">
-                                    {t.type}
-                                  </p>
-                                </div>
                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                                {t.category}
-                              </span>
-                            </td>
-                            <td
-                              className={`px-6 py-4 text-right font-bold text-sm ${
+                            )}
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center bg-slate-50 dark:bg-slate-800 shrink-0 border border-slate-100 dark:border-slate-700`}
+                            >
+                              {getCategoryIcon(t.category)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">
+                                {t.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                                  {t.category}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0 ml-2">
+                            <p
+                              className={`text-sm font-bold ${
                                 t.type === "income"
                                   ? "text-emerald-600 dark:text-emerald-500"
                                   : "text-rose-600 dark:text-rose-500"
@@ -570,31 +658,24 @@ export const History: React.FC<HistoryProps> = ({
                             >
                               {t.type === "income" ? "+" : "-"}{" "}
                               {formatCurrency(t.amount)}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => handleEdit(t)}
-                                  className="p-2 text-slate-400 hover:text-indigo-500"
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(t.id)}
-                                  className="p-2 text-slate-400 hover:text-rose-500"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                            </p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(t.id);
+                              }}
+                              className="mt-1 p-1 -mr-1 text-slate-300 hover:text-rose-500 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            </>
           )
         ) : (
           /* Calendar View */
